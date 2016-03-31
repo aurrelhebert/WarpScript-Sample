@@ -1,0 +1,313 @@
+<!--
+@license
+Copyright (c) 2014 Horacio "LostInBrittany" Gonzalez
+This code may only be used under the BSD style license found at http://polymer.github.io/LICENSE.txt
+-->
+<!doctype html>
+<html>
+<head>
+<meta name="viewport" content="width=device-width, minimum-scale=1.0, initial-scale=1.0, user-scalable=yes">
+<title>warp10-geoquantumviz demo</title>
+
+<style>
+  body {
+    background-color: #eeeeee;
+  }
+  .current-value {
+    padding-left:100px;
+  }
+  .container {
+    display: inline-block;
+    border: 1px solid #444;
+    padding:10px;
+    border-radius: 10px;
+    margin: 20px;
+    min-width: 750px;
+  }
+</style>
+<script src="https://home.cityzendata.net/quantumviz/webcomponentsjs/webcomponents.js"></script>
+<link   rel="import" href="https://home.cityzendata.net/quantumviz/polymer/polymer.html">
+<link   rel="import" href="https://home.cityzendata.net/quantumviz/warp10-quantumviz/warp10-geoquantumviz.html">
+<link   rel="import" href="https://home.cityzendata.net/quantumviz/
+leaflet-map/leaflet-map.html">
+
+<body  unresolved>
+
+  <h1>GeoQuantumviz</h1>
+
+
+<template is="dom-bind">
+
+  <div class="container">
+
+    <warp10-geoquantumviz
+      width="500" height="300" map-width="900" map-height="700"
+      show-axis="true"  tooltip="true" line-width="2" reload="0"
+      current-values={{current}}
+      host="https://warp.cityzendata.net/dist/api/v0" old-path="" >
+
+// MACROS
+<%
+'wkt_bbox_size' STORE
+'wkt_bbox_lo' STORE
+'wkt_bbox_la' STORE
+
+// GET INPUT PARAMETERS FROM THE STACK
+6378137.0  'wkt_bbox_hearthSize' STORE
+//double longitudeD = (Math.asin(1000 / (6378137 * Math.cos(Math.PI*latitude/180))))*180/Math.PI;
+$wkt_bbox_size
+// Math.cos(Math.PI*latitude/180)
+PI $wkt_bbox_la * 180 / COS
+// (Math.asin(1000 / (6378000 * Math.cos(Math.PI*latitude/180))))
+$wkt_bbox_hearthSize * / ASIN
+// *180/Math.PI
+180 * PI /
+'wkt_bbox_loD' STORE
+
+//double latitudeD = (Math.asin((double)1000 / (double)6378000))*180/Math.PI;
+$wkt_bbox_size $wkt_bbox_hearthSize /  ASIN 180 * PI /
+'wkt_bbox_laD' STORE
+
+$wkt_bbox_la $wkt_bbox_laD + TOSTRING 'wkt_bbox_laMax' STORE
+$wkt_bbox_la $wkt_bbox_laD - TOSTRING 'wkt_bbox_laMin' STORE
+$wkt_bbox_lo $wkt_bbox_loD + TOSTRING 'wkt_bbox_loMax' STORE
+$wkt_bbox_lo $wkt_bbox_loD - TOSTRING 'wkt_bbox_loMin' STORE
+
+'(('
+$wkt_bbox_loMin $wkt_bbox_laMax ' ' 2 JOIN
+$wkt_bbox_loMax $wkt_bbox_laMax ' ' 2 JOIN
+$wkt_bbox_loMax $wkt_bbox_laMin ' ' 2 JOIN
+$wkt_bbox_loMin $wkt_bbox_laMin ' ' 2 JOIN
+$wkt_bbox_loMin $wkt_bbox_laMax ' ' 2 JOIN
+',' 5 JOIN
+'))'
+'' 3 JOIN
+'POLYGON' SWAP ' ' 2 JOIN
+%>
+// Then we store the macro on a WKT_POINTBOX variable
+'WKT_POINTBOX' STORE
+// END MACROS
+
+
+
+
+'cZP2m7LQCPDiFt2fxTIzbEmTTrbiMw1zHHX6WNCaZ.V7RlDdAO8NJWo63jeeoz_5QJNGg_0jcqO4dho3.bhEsMruRVgsI63BPt9u_s.K8uPXgbHoZgtiB79lNd9axd8TN_nYmv6tsVIp_nudlv7ZdjM.DDCoA5_iT3B1kFUTV.N'
+'token' STORE
+
+$token
+AUTHENTICATE
+
+1000000000
+MAXOPS
+
+1000000000
+LIMIT
+
+10 'zoom' STORE
+
+[] 'location20' STORE
+[] 'location40' STORE
+[] 'location60' STORE
+[] 'location80' STORE
+[] 'location100' STORE
+
+//
+// Fetch the last value of all category GTS 
+// With option pop, you can choose R to stations near "Road"
+// and "A" for stations near Highway
+// With option cp, you can load a specific French department
+// Example all department near Paris: 'cp' '~(75.*)|(78.*)|(77.*)|(91.*)|(92.*)|(93.*)|(94.*)|(95.*)'
+// 
+
+[ $token '~data.fuel.france.aboveMean' { 'type' 'gazole' 'pop' 'R' } NOW -1 ] FETCH
+'gts' STORE
+
+NEWGTS 'tmpGTS' STORE
+0 'index' STORE
+
+$gts
+<%
+   'currentGTS' STORE
+    $currentGTS
+    DUP
+    LASTTICK ATTICK 'value' STORE
+    <% $value 1 GET ISNaN ! $value 2 GET ISNaN ! || %>
+    <%
+        $tmpGTS
+        $index $value 1 GET $value 2 GET NaN $value 4 GET ADDVALUE
+        'tmpGTS' STORE
+    %> IFT
+    $index 1 + 'index' STORE
+%> 
+FOREACH
+
+//
+// Compute the GTS distance from a Station to Paris
+//
+
+[                    // Start of the Macromapper
+    $tmpGTS             // Put the GTS list on the stack
+    <%                // For each value
+            'mapping_window' STORE        //  Storing macro input information
+            
+            48.8589507                // Paris Latitude
+            2.2775171                // Paris Longitude
+        
+            $mapping_window 4 GET 0 GET    // Latitude of current point
+            $mapping_window 5 GET 0 GET    // Longitude of current point
+            HAVERSINE                // Apply Haversin to compute the distance between both points
+            
+            'value' STORE                // Store the result value in variable
+        
+        $mapping_window 0 GET             // Tick
+        $mapping_window 4 GET 0 GET       // Latitude
+        $mapping_window 5 GET 0 GET       // Longitude
+        $mapping_window 6 GET 0 GET       // Elevation
+        $value                    // Value
+    %>                        // End of foreach Value
+    MACROMAPPER                // Type of Map
+    0 0 0                        // Sliding window of 1 (0 pre and 0 post), no options
+]
+MAP                            // Apply the Map
+0 GET                     // Get the first GTS
+'distanceParis' STORE        // Store the result
+
+$distanceParis
+true
+MUSIGMA
+'sigma' STORE
+'mu' STORE
+
+[ $distanceParis $mu $sigma 4 * + mapper.lt 0 0 0 ] MAP
+
+[ 
+    SWAP // Previous GTS
+    mapper.toboolean  // Setting the mapper.toboolean
+    0 0 0             // Sliding window of 1 (0 pre and 0 post), no options
+]
+MAP
+
+[ 
+    SWAP // GTS Mask (in boolean) the previosu one
+    [ $tmpGTS ] // GTS on which execute this apply
+    [] // No label
+    op.mask
+]
+APPLY
+'tmpGTS' STORE
+
+//48.8589507,2.2775171 Paris
+[
+        $tmpGTS
+        $zoom mapper.geo.approximate 0 0 0 
+]
+MAP
+'tmpGTS' STORE
+
+[ $tmpGTS 0 GET LOCATIONS ] ZIP UNIQUE 'uniquePosition' STORE
+
+$uniquePosition
+<%
+    'point' STORE
+    <% $point 0 GET ISNaN ! $point 1 GET ISNaN ! || %>
+    <%
+        [    
+            $tmpGTS
+            $point 0 GET $point 1 GET 10
+            @WKT_POINTBOX
+            0.2 false GEO.WKT mapper.geo.within
+            0
+            0
+            0
+        ] MAP 
+        DUP 0 GET SIZE 'nbStations' STORE
+        [ SWAP bucketizer.mean 0 0 1 ] BUCKETIZE 0 GET
+        VALUES 0 GET 'value' STORE
+        $point 50 $value - ABS
+        + 'point' STORE
+        <% $value 21 < %> // Condition 1
+          <% 
+            $location20 $point +
+            'location20' STORE
+          %> // exec 1
+        <% $value 21 > $value 41 < AND %> // Condition 2
+          <% 
+            $location40 $point +
+            'location40' STORE
+          %> // exec 2
+        <% $value 41 > $value 61 < AND %> // Condition 3
+          <% 
+            $location60 $point +
+            'location60' STORE
+          %> // exec 3
+        <% $value 61 > $value 81 < AND %> // Condition 4
+          <% 
+            $location80 $point +
+            'location80' STORE
+          %> // exec 4
+        <% $value 81 > %> // Condition 5
+          <% 
+            $location100 $point +
+            'location100' STORE
+          %> // exec 5
+        <%
+        %> // default
+        5
+        SWITCH
+    %> IFT
+%>
+FOREACH
+
+[ 
+    { 'positions' $location20 'path' false } 
+    // { 'positions' $location40 'path' false }
+    // { 'positions' $location60 'path' false }
+    // { 'positions' $location80 'path' false }
+    { 'positions' $location100 'path' false }
+] 'mapLocation' STORE
+
+  [ 
+    { 'color' '#00ff00' 'key' 'points' 'render' 'weightedDots'  'maxValue' 60 'minValue' 20 'baseRadius' 5 'numSteps' 4 }
+    // { 'color' '#88ff00' 'key' 'points' 'render' 'weightedDots'  'maxValue' 40 'minValue' 0 'baseRadius' 5 'numSteps' 4 }
+    // { 'color' '#ffff00' 'key' 'points' 'render' 'weightedDots'  'maxValue' 40 'minValue' 0 'baseRadius' 5 'numSteps' 4 }
+    // { 'color' '#ff8800' 'key' 'points' 'render' 'weightedDots'  'maxValue' 40 'minValue' 0 'baseRadius' 5 'numSteps' 4 }
+    { 'color' '#ff0000' 'key' 'points' 'render' 'weightedDots'  'maxValue' 60 'minValue' 20 'baseRadius' 5 'numSteps' 4 }
+  ] 'params' STORE
+
+  { 'interpolate' 'cardinal' } 'globalParams' STORE
+
+  {
+    'gts' $mapLocation 
+    'params' $params
+    'globalParams' $globalParams
+  }
+
+    //{ 'key' 'points' 'render' 'weightedDots' 'color' '#aaf' 'borderColor' '#f00' 'maxValue' 100 'minValue' 0 'baseRadius' 15 'numSteps' 10 }
+
+</warp10-geoquantumviz>
+
+    <template is="dom-if" if="{{current}}">
+        <div class="current-value">
+          <b>Current values:
+        <br/>
+          x: <span>{{current.xValue}}</span>
+        <br/>
+          <ul>
+          <template is="dom-repeat" items="{{current.yValues}}">
+            <li>
+              key: <span>{{item.key}}</span>
+              value: <span>{{item.value}}</span>
+            </li>
+          </template>
+          </ul>
+        </div>
+    </template>
+  </div>
+</template>
+
+<div></div>
+
+
+  <p>By <a href="http://cityzendata.com">Cityzen Data</a></p>
+</body>
+</html>

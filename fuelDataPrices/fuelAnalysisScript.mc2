@@ -1,0 +1,258 @@
+//
+// Store some parameters in variable:
+// an application READ token
+//
+
+'READ' 'token' STORE
+
+//
+// an application Write token
+//
+
+'WRITE' 'writeToken' STORE
+
+//
+// authenticate the Stack with the read token
+//
+
+$token
+AUTHENTICATE
+
+//
+// Raise the stack limits
+//
+
+1000000000
+MAXOPS
+
+1000000000
+LIMIT
+
+//
+// Store as Timestamp the date 01 Jan 2016 10:00:00
+//
+
+1451642400000000
+'timestamp' STORE
+
+//
+// Load all the data and store it in a variable
+//
+
+'AReadToken'        
+'token' STORE       
+
+[                   
+  $token                  
+  'data.fuel'             
+  { 'type' 'gazole' }    
+  NOW                     
+  -1 MAXLONG *           
+] 
+FETCH               
+  
+'gts' STORE         // Store the fetch result in variable gts
+
+//
+// Generate buckets with a 1 day size to have uniforme ticks with all the GTS
+//
+
+[                    
+    $gts                  
+    bucketizer.max        
+    0                     
+    1 d                   
+    0                     
+]
+BUCKETIZE          
+
+'gts' STORE         // Store the bucketize result in variable gts
+
+//
+// Compute Mean price value on the last Five Year by type of Petrol
+//
+
+[                   
+    $gts                  
+    [ 'type' ]            
+    reducer.mean.exclude-nulls  
+]
+REDUCE         
+
+'gtsMean' STORE
+
+//
+// Get a GTS list with only value superior to the mean
+//
+
+[] 'list' STORE     
+{} 'map' STORE 
+
+$gts                // Put the bucketized list of GTS on the stack
+
+//
+// START MACRO FOREACH (GTS inside variable gts)
+// 
+
+<%                
+  'currentGTS' STORE      
+
+  //
+  // Get the station position (As a station doesn’t move, 
+  // it’s location correspond to the last point recorded)
+  //
+  
+  $currentGTS             
+  DUP                     
+  LASTTICK                
+  ATTICK                  
+
+  'values' STORE          
+  [] 'point' STORE       
+  $point $values 1 GET + 'point' STORE
+  $point $values 2 GET + 'point' STORE
+                          
+  $currentGTS             
+  LABELS                  
+  'id'                    
+  GET                     
+  'id' STORE              
+  $map  $point $id  PUT
+
+  'map' STORE             
+  $currentGTS             
+  LABELS                  
+  'type'                 
+  GET                     
+  'thisType' STORE        
+
+  //
+  // Apply a filter on all the GTS mean to get having the same type of fuel as the current GTS
+  //
+
+  [
+    $gtsMean                    
+    []                          
+    { 'type' $thisType }        
+    filter.bylabels             
+  ]
+  FILTER                  
+  'currentMean' STORE     
+
+  //
+  // Apply the Operator greater than between the current GTS and the mean GTS
+  // 
+
+  [
+    [
+      $currentGTS                   
+    ]
+    $currentMean               
+    [ 'type' ]            
+    op.gt                       
+  ]                
+  APPLY             
+
+  // 
+  // Add resulting GTS in result list (called list)
+  //
+
+  $list                   
+  SWAP                    
+  0 GET +                 
+  'list' STORE     
+%>
+FOREACH             
+
+//
+// Keep only value superior to the mean
+//
+
+[ 
+  $list                   
+  true                    
+  mapper.eq               
+  0                      
+  0                      
+  0                       
+] MAP               
+
+//
+// For each resulting GTS apply the following steps
+//
+
+<%                  
+  DROP                    
+  'currentGTS' STORE      
+
+  //
+  // Get the Labels of the current GTS
+  //
+
+  $currentGTS             
+  LABELS                  
+  'thisLabels' STORE      
+  $thisLabels             
+  'type'                 
+  GET                    
+  'thisType' STORE       
+  $currentGTS SIZE       
+  'nbSup' STORE           
+
+  //
+  // Get the mean GTS for the same fuel type of the current GTS
+  //
+
+  [
+    $gtsMean                    
+    []                          
+    { 'type' $thisType }        
+    filter.bylabels             
+  ]
+  FILTER                  
+  0 GET                   
+  SIZE 'sizeMean' STORE   
+  
+  //
+  // Compute the percentage of value above mean
+  //
+
+  $nbSup 100 *            
+  TODOUBLE                
+
+  $sizeMean TODOUBLE      
+  /                       
+  'value' STORE           
+  
+
+  //
+  // Get current Location point
+  //
+
+  $map                    
+  $currentGTS             
+  LABELS                  
+  'id'                   
+  GET                     
+  'id'                    
+  'point' STORE         
+
+  //
+  // Create a new result GTS
+  //
+
+  NEWGTS                  
+  'data.fuel.france.aboveMean' RENAME     
+  $thisLabels RELABEL     
+  $timestamp $point 0 GET $point 1 GET 1 $value ADDVALUE
+%>
+LMAP
+
+
+//
+// On top of the Stack there is the result of the previous computation a GTS list
+// Update those GTS on the Warp 10 platform
+//
+
+$writeToken       // A write value token
+UPDATE            // Apply Update to write the GTS List
