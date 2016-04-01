@@ -6,6 +6,12 @@
 'READ' 'token' STORE
 
 //
+// An application Write token
+//
+
+'WRITE' 'writeToken' STORE
+
+//
 // authenticate the Stack with the read token
 //
 
