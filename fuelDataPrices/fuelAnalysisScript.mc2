@@ -6,12 +6,6 @@
 'READ' 'token' STORE
 
 //
-// an application Write token
-//
-
-'WRITE' 'writeToken' STORE
-
-//
 // authenticate the Stack with the read token
 //
 
@@ -37,20 +31,16 @@ LIMIT
 
 //
 // Load all the data and store it in a variable
-//
-
-'AReadToken'        
-'token' STORE       
+//      
 
 [                   
   $token                  
-  'data.fuel'             
+  'data.fuel.france'             
   { 'type' 'gazole' }    
-  NOW                     
-  -1 MAXLONG *           
+  NOW                 
+  -1 MAXLONG *            
 ] 
 FETCH               
-  
 'gts' STORE         // Store the fetch result in variable gts
 
 //
@@ -101,66 +91,66 @@ $gts                // Put the bucketized list of GTS on the stack
   // Get the station position (As a station doesn’t move, 
   // it’s location correspond to the last point recorded)
   //
-  
-  $currentGTS             
-  DUP                     
-  LASTTICK                
-  ATTICK                  
-
-  'values' STORE          
-  [] 'point' STORE       
-  $point $values 1 GET + 'point' STORE
-  $point $values 2 GET + 'point' STORE
-                          
-  $currentGTS             
-  LABELS                  
-  'id'                    
-  GET                     
-  'id' STORE              
-  $map  $point $id  PUT
-
-  'map' STORE             
-  $currentGTS             
-  LABELS                  
-  'type'                 
-  GET                     
-  'thisType' STORE        
-
-  //
-  // Apply a filter on all the GTS mean to get having the same type of fuel as the current GTS
-  //
-
-  [
-    $gtsMean                    
-    []                          
-    { 'type' $thisType }        
-    filter.bylabels             
-  ]
-  FILTER                  
-  'currentMean' STORE     
-
-  //
-  // Apply the Operator greater than between the current GTS and the mean GTS
-  // 
-
-  [
-    [
-      $currentGTS                   
-    ]
-    $currentMean               
-    [ 'type' ]            
-    op.gt                       
-  ]                
-  APPLY             
-
-  // 
-  // Add resulting GTS in result list (called list)
-  //
-
-  $list                   
-  SWAP                    
-  0 GET +                 
-  'list' STORE     
+  <% $currentGTS SIZE 0 > %>
+  <%
+      $currentGTS        
+      DUP                     
+      LASTTICK                
+      ATTICK                  
+    
+      'values' STORE          
+      [] 'point' STORE       
+      $point $values 1 GET + 'point' STORE
+      $point $values 2 GET + 'point' STORE
+                              
+      $currentGTS             
+      LABELS                  
+      'id'                    
+      GET                     
+      'id' STORE              
+      $map  $point $id  PUT
+    
+      'map' STORE             
+      $currentGTS             
+      LABELS                  
+      'type'                 
+      GET                     
+      'thisType' STORE        
+    
+      //
+      // Apply a filter on all the GTS mean to get having the same type of fuel as the current GTS
+      //
+    
+      [
+        $gtsMean                    
+        []                          
+        { 'type' $thisType }        
+        filter.bylabels             
+      ]
+      FILTER                  
+      'currentMean' STORE     
+    
+      //
+      // Apply the Operator greater than between the current GTS and the mean GTS
+      // 
+    
+      [
+        [ $currentGTS ]           
+        $currentMean               
+        [ 'type' ]            
+        op.gt                       
+      ]                
+      APPLY             
+      
+      // 
+      // Add resulting GTS in result list (called list)
+      //
+    
+      $list                   
+      SWAP                    
+      0 GET +                 
+      'list' STORE   
+    %> IFT
 %>
 FOREACH             
 
@@ -177,6 +167,7 @@ FOREACH
   0                       
 ] MAP               
 
+NONEMPTY
 //
 // For each resulting GTS apply the following steps
 //
@@ -230,11 +221,11 @@ FOREACH
   //
 
   $map                    
-  $currentGTS             
+  $currentGTS            
   LABELS                  
   'id'                   
   GET                     
-  'id'                    
+  GET                   
   'point' STORE         
 
   //
@@ -248,11 +239,10 @@ FOREACH
 %>
 LMAP
 
-
 //
 // On top of the Stack there is the result of the previous computation a GTS list
 // Update those GTS on the Warp 10 platform
 //
 
-$writeToken       // A write value token
-UPDATE            // Apply Update to write the GTS List
+$writeToken       
+UPDATE           
