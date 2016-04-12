@@ -1,0 +1,113 @@
+<%
+    'gtsSample' STORE
+    'distance' STORE
+    
+    //
+    // Get The GTS vehicleCount
+    //
+    
+    [ 
+        $gtsSample       
+        []                        
+        'vehicleCount'       
+        filter.byclass            
+    ] FILTER
+    
+    'gtsN' STORE
+    
+    //
+    // Compute the GTS density (Multplicate Nb car by  thedistance between both points)
+    //
+    
+    [
+      [ $gtsN  mapper.todouble 0 0 0 ] MAP
+      1 $distance / mapper.mul 0 0 0  
+    ] MAP
+    'gtsDensity' STORE
+    
+    //
+    // Load GTS average Speed
+    //
+    
+    [ 
+        $gtsSample          
+        []                        
+        'avgSpeed'       
+        filter.byclass            
+    ] FILTER
+    'gtsAvgSpeed' STORE
+    
+    //
+    // Compute harmonic mean 
+    //
+    
+    [
+      [ $gtsAvgSpeed mapper.todouble 0 0 0 ] MAP
+      1 1.02 / mapper.mul 0 0 0  
+    ] MAP
+    'gtsAvgSpeed'  STORE
+     
+    //
+    // Compute Flow
+    //
+    
+    [
+      $gtsDensity
+      $gtsAvgSpeed
+      [ 'ext_id' ] 
+      op.mul
+    ]
+    APPLY
+    'gtsFlow' STORE
+    
+    //
+    // Round at 0.01
+    //
+    
+    <%
+      'mapping_window' STORE    //  Storing macro input information 
+    
+      $mapping_window 0 GET         // Tick
+      $mapping_window 4 GET 0 GET   // Latitude
+      $mapping_window 5 GET 0 GET   // Longitude
+      $mapping_window 6 GET 0 GET   // Elevation
+      $mapping_window 7 GET 0 GET   // Value
+      100 *
+      ROUND
+      TODOUBLE
+      100 /
+    %> 'roundMill' STORE
+    
+    //
+    // Round each value of gts flow to 0.01
+    //
+    
+    [
+        $gtsFlow
+        $roundMill
+        MACROMAPPER
+        0 0 0
+    ]
+    MAP
+    'gtsFlow' STORE
+     
+    //
+    // Round each value of gts flow to 0.01
+    //
+    
+    [
+        $gtsDensity 
+        $roundMill
+        MACROMAPPER
+        0 0 0
+    ]
+    MAP
+    'gtsDensity' STORE
+$gtsDensity 
+$gtsFlow 
+%>
+'generateDensityFlow' STORE
+
+
+
+

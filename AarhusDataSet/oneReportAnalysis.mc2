@@ -1,0 +1,102 @@
+'READTOKEN'
+'token' STORE
+
+%warpscript
+'192.168.99.101'
+8087
+{
+    'timestamp' 2
+    'class' 
+    {
+        3 'avgMeasuredTime'
+        4 'avgSpeed'
+        6 'vehicleCount'
+    }
+    'labels'
+    {
+        8 'report_id'
+        1 'ext_id'
+    }
+}
+// extid= 678, d= 1.450 ; extid= 624 , d= 0.516 ; extid= 1053, d= 2.061
+'select *  from aarhus2 where ts > 1392249600000 and ts < 1397260800000 and status=%27OK%27 and extid=%27678%27'
+'io.warp10.riakts.LOADFROMRIAK' UDF
+'gtsSample' STORE
+1.450 'distance' STORE
+$token
+AUTHENTICATE
+
+//
+// Raise the maxOps limit
+//
+
+1000000000
+MAXOPS
+
+$distance
+$gtsSample
+@generateDensityFlow
+'gtsFlow' STORE
+'gtsDensity' STORE
+$gtsDensity
+$gtsFlow
+0.0
+@computeTraffic
+SWAP 
+'gtsScoreCurId' STORE
+
+@computeWeekMap
+'mapDays' STORE
+
+//
+// Visualization map global
+//
+
+{
+    'gts'
+    $mapDays VALUELIST  
+    'params'
+    [
+        { 'key' 'Monday' }
+        { 'key' 'Tuesday' }
+        { 'key' 'Wednesday' }
+        { 'key' 'Thurday' }
+        { 'key' 'Friday' }
+        { 'color' '#ff1010' 'key' 'Saturday' }
+        { 'color' '#ff1010' 'key' 'Sunday' }
+    ]
+    'globalParams'
+    { 'interpolate' 'linear' 'dateFormat' '%25H:%25M' }
+}
+'map' STORE
+
+//
+// Visualization Wednesday and Friday
+//
+{
+    'gts'
+    [ 
+        $gtsWeekMap VALUELIST 2 GET 
+        $gtsWeekMap VALUELIST 1 GET 
+    ]
+    'params'
+    [
+        { 'key' 'Wednesday' }
+        { 'key' 'Tuesday' }
+    ]
+    'globalParams'
+    { 'interpolate' 'step-after' 'dateFormat' '%25H:%25M' }
+}
+'mapFridayWes' STORE
+
+
+{
+    'visuMapId'
+    [ $map ]
+    'visuMap2days'
+    [ $mapFridayWes ]
+    'gtsDensityId'
+    $gtsDensity WRAP
+    'gtsScoreId'
+    $gtsScoreCurId 0 GET
+}

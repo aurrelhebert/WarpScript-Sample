@@ -1,0 +1,212 @@
+<% 
+
+'gtsTrafficCount' STORE
+
+//
+// Initialiaze week GTS map
+//
+
+{
+    '1'
+    NEWGTS 'mondays' RENAME
+    '2'
+    NEWGTS 'tuesdays' RENAME
+    '3'
+    NEWGTS 'wednesdays' RENAME
+    '4'
+    NEWGTS 'thursdays' RENAME
+    '5'
+    NEWGTS 'fridays' RENAME
+    '6'
+    NEWGTS 'saturdays' RENAME
+    '7'
+    NEWGTS 'sundays' RENAME
+}
+'gtsWeekMap' STORE
+
+//
+// Apply a macro mapper to split each GTS according to their typical day
+//
+
+[
+    $gtsTrafficCount
+    <%
+        'mapping_window'  STORE
+        
+            
+            //
+            // Get current timestamp
+            //
+            
+            $mapping_window 0 GET
+            
+            //
+            // Get its elements, and which day of the week
+            //
+            
+            TSELEMENTS
+            8 GET
+            TOSTRING 'mapKey' STORE
+            
+            // 
+            // Get corresponding GTS and add it current value
+            //
+            
+            $gtsWeekMap
+            $mapKey
+            GET
+        <% $mapping_window 7 GET SIZE 0 > %>
+        <%
+            $mapping_window 0 GET NaN NaN NaN 1 ADDVALUE
+        %>
+        <%
+            $mapping_window 0 GET NaN NaN NaN 0 ADDVALUE
+        %>
+        IFTE
+        
+        //
+        // Add current GTS to the map
+        //
+        
+        $gtsWeekMap
+        SWAP
+        $mapKey
+        PUT
+        'gtsWeekMap' STORE
+        
+        // Push values
+        $mapping_window 0 GET         // Tick
+        NaN 
+        NaN
+        NaN
+        NULL
+    %>
+    MACROMAPPER
+    0 0 0
+]
+MAP
+DROP 
+
+//
+// Compute daily data
+//
+{
+    $gtsWeekMap
+    <%
+        //
+        // Generate daily model
+        //
+        'currentGTS' STORE
+        
+        [
+            //
+            // Apply a macro mapper to compute daily modulo taking in account Aarhus (CET) calendar
+            //
+            { } 'gtsSplit' STORE
+            [
+                $currentGTS
+                <%
+                    //
+                    // Get current tick values
+                    //
+                    
+                    'mapping_window' STORE
+                    
+                    // 
+                    // GET TSELEMNT FROM TICKS, comopute key based on year, month and day
+                    // 
+                    
+                    $mapping_window 0 GET
+                    'CET' TSELEMENTS 'tickTSELEMENTS' STORE
+                    
+                    // KEY
+                    $tickTSELEMENTS 0 GET TOSTRING // YEAR
+                    $tickTSELEMENTS 1 GET TOSTRING // MONTH
+                    $tickTSELEMENTS 2 GET TOSTRING // DAY
+                    '-' 3 JOIN 'key' STORE
+                    
+                    //
+                    // Get timestamp modulo one day
+                    //
+                    $mapping_window 0 GET STU 60 * 60 * 24 * % 'moduloTimestamp' STORE
+                    
+                    //
+                    // Compute CET correction
+                    //
+                    
+                    $tickTSELEMENTS 3 GET          // CET Hour
+                    'timeCET' STORE
+                    $mapping_window 0 GET          // UTC Hour
+                    TSELEMENTS
+                    3 GET
+                    'timeUTC' STORE
+                    STU 60 * 60 * $timeCET $timeUTC - * 'correctTime' STORE
+                    
+                    //
+                    // if result map contains the key
+                    //
+                    
+                    <% $gtsSplit $key CONTAINSKEY  %>
+                    
+                    //
+                    // Then Get the value
+                    //
+                    
+                    <% $gtsSplit $key GET %>
+                    
+                    //
+                    // Else create and put a NEWGTS on the stack
+                    //
+                    
+                    <% NEWGTS 'tmp' RENAME { 'key' $key } RELABEL %>
+                    IFTE
+                    
+                    //
+                    // Adds datapoint value with modified timestamp
+                    //
+                    
+                    $moduloTimestamp $correctTime +
+                    STU 60 * 60 * 24 * %
+                    NaN NaN NaN
+                    $mapping_window 7 GET 0 GET
+                    ADDVALUE
+                    
+                    //
+                    // Put the value in the map
+                    //
+                    $key PUT 'gtsSplit' STORE
+                    
+                    $mapping_window 0 GET NaN NaN NaN NULL
+                %>
+                MACROMAPPER
+                0 0 0
+            ] MAP
+            DROP
+            $gtsSplit SIZE 'gtsSize' STORE
+            
+            $gtsSplit VALUELIST DEDUP
+            
+            //
+            // Apply a reducer that count how many ticks happend in the same time bucket
+            //
+            []
+            reducer.sum
+        ]
+        REDUCE
+        <% $gtsSize 0 != %>
+        <%
+            [ SWAP 100 $gtsSize / mapper.mul 0 0 0 ] MAP
+        %>
+        <%  
+            DROP
+            [ NEWGTS ]
+        %> 
+        IFTE
+        0 GET
+        $currentGTS NAME RENAME
+    %>
+    FOREACH
+}
+'gtsWeekMap' STORE
+$gtsWeekMap
+%> 

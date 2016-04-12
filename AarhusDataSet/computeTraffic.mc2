@@ -1,0 +1,134 @@
+<%
+    'score' STORE
+    'gtsFlow' STORE
+    'gtsDensity' STORE
+    
+    //
+    // Initialization res List
+    //
+    [] 'resTrafficScore' STORE
+    [] 'resTrafficCount' STORE
+    
+    //
+    // Clone the GTS Density
+    //
+    
+    $gtsDensity
+    <%
+        CLONE
+        [ SWAP ]
+        'tmpGTS' STORE 
+    
+        [ SWAP ]
+        'curGTSdensity' STORE
+    
+        //
+        // Get label extid of the current GTS
+        //
+        
+        $curGTSdensity 0 GET LABELS
+        'ext_id' GET
+        'curExtId' STORE
+        
+        //
+        // Kept value density equals to zero
+        //
+        [ $tmpGTS 0.0 mapper.eq 0 0 0 ] MAP
+        'tmpGTS' STORE
+    
+        [ 
+            $gtsFlow          
+            []                        
+            //TODO get extid gts density
+            { 'ext_id' $curExtId }
+            filter.bylabels            
+        ] FILTER
+        'curGTSflow' STORE
+        
+        [
+            [ $tmpGTS 0 GET $curGTSflow 0 GET ]
+            []
+            reducer.max 
+        ]
+        REDUCE
+        'curGTSflow' STORE
+    
+        //
+        // Compute GTS delta flow
+        //
+        
+        [
+            $curGTSflow
+            mapper.delta
+            2
+            0
+            0
+        ]
+        MAP
+        'gtsDeltaFlow' STORE
+    
+        //
+        // Compute GTS delta density 
+        //
+        
+        [
+            $curGTSdensity
+            mapper.delta
+            2
+            0
+            0
+        ]
+        MAP
+        'gtsDeltaDensity' STORE
+    
+        //
+        // Keep only delta density value >=0
+        //
+        
+        [ $gtsDeltaDensity 0.0 mapper.gt 0 0 0 ] MAP
+        [ SWAP mapper.toboolean 0 0 0 ] MAP
+        'gtsMaskDensity' STORE
+    
+        //
+        // Apply a mask to kept only the flow where the points have a density value >=0
+        //
+        
+        [
+          $gtsMaskDensity
+          $gtsDeltaFlow
+          []
+          op.mask
+        ]
+        APPLY
+        'applyResult' STORE
+    
+        //
+        // Keep only delta flow value <=0
+        //
+        
+        [ $applyResult $score mapper.lt 0 0 0 ] MAP
+        'tmpTraffic' STORE
+        
+        //
+        // Add score gts to resScore
+        //
+        
+        $tmpTraffic 0 GET CLONE
+        $resTrafficScore SWAP
+        + 
+        'resTrafficScore' STORE
+        
+        //
+        // Add count gts to resCount
+        //
+        'trafficCount' STORE
+        [ $trafficCount bucketizer.count 0 STU 60 * 20 * 0 ] BUCKETIZE
+        0 GET
+        $resTrafficCount SWAP
+        + 
+        'resTrafficCount' STORE
+    %>
+    FOREACH
+    $resTrafficScore
+    $resTrafficCount
+%>

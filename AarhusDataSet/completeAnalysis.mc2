@@ -1,0 +1,120 @@
+'READTOKEN'
+'token' STORE 
+
+$token
+AUTHENTICATE
+//
+// Raise the fetch limits (number of data points for a Fetch)
+//
+
+1000000000
+LIMIT
+
+//
+// Raise the maxOps limit
+//
+
+1000000000
+MAXOPS
+
+[ $token '~(vehicleCount.*)|(avgSpeed.*)' { 'ext_id' '~.*' } '2014-02-13T00:00:00Z' '2014-04-12T00:00:00Z' ] FETCH
+'gtsAarhusAll' STORE
+
+1.0
+$gtsAarhusAll
+@generateDensityFlow
+0.0
+@computeTraffic
+SWAP 
+'gtsScore' STORE
+
+[] 'mapDays' STORE
+
+<%
+    [ SWAP ]
+    @computeWeekMap
+    $mapDays SWAP +
+    'mapDays' STORE
+%>
+FOREACH 
+
+//
+// Initialiaze week GTS list map
+//
+
+{
+    '1'
+    []
+    '2'
+    []
+    '3'
+    []
+    '4'
+    []
+    '5'
+    []
+    '6'
+    []
+    '7'
+    []
+}
+'gtsListWeekMap' STORE
+
+$mapDays
+<%
+    'curMap' STORE
+    <%
+        //
+        // add element to the GTS list map
+        //
+        
+        TOSTRING 'elem' STORE       // convert elem to STRING
+        $gtsListWeekMap
+        $gtsListWeekMap
+        $elem GET                   // Get current elem in Map
+        $curMap
+        $elem GET +                 // Add current GTS to this list
+        $elem
+        PUT                         // Put element in the Map
+        'gtsListWeekMap' STORE
+    %> 'elemFor' STORE
+    1 7 $elemFor FOR
+%>
+FOREACH
+
+{
+    $gtsListWeekMap
+    <%
+        DUP
+        [ SWAP [] reducer.mean.exclude-nulls ] REDUCE
+        SWAP 0 GET NAME RENAME
+    %> 
+    FOREACH
+}
+'map' STORE
+
+//
+// Compute Top N on the GTS containing result of the Sum of all value of the GTS Score.
+//
+
+[ $gtsScore NONEMPTY bucketizer.sum 0 0 1 ] BUCKETIZE
+LASTSORT
+WRAP
+'gtsScoreSorted' STORE
+
+//
+// Visualisation MAp
+//
+
+{
+    'resMapWrapped'
+    {
+        $map
+        <%
+            WRAP
+        %>
+        FOREACH
+    }
+    'gtsScoreSorted'
+    $gtsScoreSorted
+}
