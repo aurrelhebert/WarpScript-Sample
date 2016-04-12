@@ -94,7 +94,7 @@ FOREACH
 'map' STORE
 
 //
-// Compute Top N on the GTS containing result of the Sum of all value of the GTS Score.
+// Compute Top N on the sum of all values of each GTS score
 //
 
 [ $gtsScore NONEMPTY bucketizer.sum 0 0 1 ] BUCKETIZE
@@ -103,7 +103,7 @@ WRAP
 'gtsScoreSorted' STORE
 
 //
-// Visualisation MAp
+// Result Map
 //
 
 {
