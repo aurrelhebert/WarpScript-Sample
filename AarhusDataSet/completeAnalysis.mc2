@@ -17,8 +17,16 @@ LIMIT
 1000000000
 MAXOPS
 
+//
+// Load the data from Warp 10
+//
+
 [ $token '~(vehicleCount.*)|(avgSpeed.*)' { 'ext_id' '~.*' } '2014-02-13T00:00:00Z' '2014-04-12T00:00:00Z' ] FETCH
 'gtsAarhusAll' STORE
+
+//
+// Accord on same distance for each data stream
+//
 
 1.0
 $gtsAarhusAll
@@ -29,6 +37,10 @@ SWAP
 'gtsScore' STORE
 
 [] 'mapDays' STORE
+
+// 
+// Compute Week Map for each different data stream
+//
 
 <%
     [ SWAP ]
@@ -81,6 +93,10 @@ $mapDays
     1 7 $elemFor FOR
 %>
 FOREACH
+
+//
+// Reduce by computing a global mean on all map values
+//
 
 {
     $gtsListWeekMap

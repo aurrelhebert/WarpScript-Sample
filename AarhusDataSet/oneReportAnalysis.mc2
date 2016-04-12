@@ -1,24 +1,31 @@
 'READTOKEN'
 'token' STORE
 
-%warpscript
-'192.168.99.101'
-8087
-{
-    'timestamp' 2
-    'class' 
+//
+// Load data from Riak-ts
+//
+
+'192.168.99.101'            // URL
+8087                        // PORT
+{                           // Colums map
+    'timestamp' 2           // Timestamp key correspond to 3rd column
+    'class'                 // Class key
     {
-        3 'avgMeasuredTime'
-        4 'avgSpeed'
-        6 'vehicleCount'
+        4 'avgSpeed'        // Load 4th Column: avg speed
+        6 'vehicleCount'    // Load 6th Column: vehicle Count
     }
-    'labels'
+    'labels'                // Labels key 
     {
-        8 'report_id'
-        1 'ext_id'
+        8 'report_id'       // 8th column: report id
+        1 'ext_id'          // 1th column: ext_id
     }
 }
+
+//
+// Some extid simple
 // extid= 678, d= 1.450 ; extid= 624 , d= 0.516 ; extid= 1053, d= 2.061
+//
+
 'select *  from aarhus2 where ts > 1392249600000 and ts < 1397260800000 and status=%27OK%27 and extid=%27678%27'
 'io.warp10.riakts.LOADFROMRIAK' UDF
 'gtsSample' STORE
@@ -33,17 +40,30 @@ AUTHENTICATE
 1000000000
 MAXOPS
 
+//
+// Apply macro to generate density and flow GTS from data set and distance
+//
+
 $distance
 $gtsSample
 @generateDensityFlow
 'gtsFlow' STORE
 'gtsDensity' STORE
+
+//
+// Then call compute traffic with compute a GTS score and a 20 minutes bucketised GTS count from the density and flow GTS and a score limit
+//
+
 $gtsDensity
 $gtsFlow
 0.0
 @computeTraffic
 SWAP 
 'gtsScoreCurId' STORE
+
+//
+// Generate a weekly values map, a value correspond to a percentage of times when a road is busy during 20 minutes
+// 
 
 @computeWeekMap
 'mapDays' STORE
