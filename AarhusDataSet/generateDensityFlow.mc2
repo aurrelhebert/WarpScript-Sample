@@ -92,7 +92,7 @@
       ROUND
       TODOUBLE
       100 /
-    %> 'roundMill' STORE
+    %> 'roundCent' STORE
     
     //
     // Round each value of gts flow to 0.01
@@ -100,7 +100,7 @@
     
     [
         $gtsFlow
-        $roundMill
+        $roundCent
         MACROMAPPER
         0 0 0
     ]
@@ -113,7 +113,7 @@
     
     [
         $gtsDensity 
-        $roundMill
+        $roundCent
         MACROMAPPER
         0 0 0
     ]

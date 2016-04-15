@@ -20,12 +20,6 @@
     'gtsDensity' STORE
     
     //
-    // Initialization res List
-    //
-    [] 'resTrafficScore' STORE
-    [] 'resTrafficCount' STORE
-    
-    //
     // Compute GTS delta flow
     //
         
