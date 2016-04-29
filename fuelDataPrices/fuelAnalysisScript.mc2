@@ -72,11 +72,16 @@ FETCH
 [                    
     $gts                  
     bucketizer.max        
-    0                     
+    $timestamp                    
     1 d                   
     0                     
 ]
-BUCKETIZE          
+BUCKETIZE 
+
+//
+// As only updates are pushed, complete each null bucket with the GTS previous value
+//
+FILLPREVIOUS
 
 'gts' STORE         // Store the bucketize result in variable gts
 
